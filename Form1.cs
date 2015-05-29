@@ -17,7 +17,12 @@ namespace RollDiced
         {
             InitializeComponent();
         }
-        public String rollDice(int[] d)
+        //Delegate for Roll
+        public delegate void RollAction(object obj1, EventArgs e);
+        //Public formats for textboxes
+        public Font resultFont = new Font("Microsoft Sans Serif",12f);
+        public BorderStyle resultBorder = BorderStyle.None;
+        public String printRoll(int[] d, int b)
         {
             String roll = "";
             for (int i = 0; i < d.Count(); i++)
@@ -28,71 +33,20 @@ namespace RollDiced
                     roll += " + ";
                 }
             }
-            roll += " = " + d.Sum();
+            if (b > 0)
+            {
+                roll += " + " + b;
+            }
+            roll += " = " + (d.Sum() + b);
             return roll;
         }
-        public int countDice(String s)
+        public int[] rollDice(int dDiceCount, int dDiceType)
         {
-            int toD = s.IndexOf('d');
-            if (toD < 1)
-            {
-                return 0;
-            }
-            return int.Parse(s.Substring(0,toD));
-        }
-        public int findDiceType(String s)
-        {
-            int toD = s.IndexOf('d');
-            int len = s.Length;
-            if (toD < 1)
-            {
-                return 0;
-            }
-            return int.Parse(s.Substring(toD + 1, len - (toD + 1)));
-        }
-        public bool validateRoll(String r)
-        {
-            if(r == string.Empty) return false;
-            if (r.Count(s => s == 'd') != 1) return false;
-            if (r.IndexOf('d') < 1) return false;
-            return true;
-        }
-        public int rollWild(int i)
-        {
-            Random rnd = new Random();
-            int roll = i;
-            int wildRoll = roll;
-            while (roll == i)
-            {
-                roll = rnd.Next(1, i);
-                wildRoll += roll;
-            }
-            return wildRoll;
-        }
-        private void btn_Roll_Click(object sender, EventArgs e)
-        {
-            if (!validateRoll(this.txt_Roll.Text))
-            {
-                MessageBox.Show("Please enter a roll designation such as 3d6.");
-                return;
-            }
-            //String path = System.IO.Path.GetDirectoryName(Application.ExecutablePath) + "\\diceroll.wav";
-            //using (SoundPlayer p = new SoundPlayer(path))
-            //{
-            //    p.PlaySync();
-            //};
-            int dDiceCount;
-            int dDiceType;
-            String damage;
             Random rndRoll = new Random();
-            damage = this.txt_Roll.Text;
-            //split damage into two ints.
-            dDiceCount = countDice(damage);
-            dDiceType = findDiceType(damage);
             int[] rolls = new int[dDiceCount];
-            for (int i = 0; i < dDiceCount; i ++)
+            for (int i = 0; i < dDiceCount; i++)
             {
-                rolls[i] = rndRoll.Next(1,dDiceType+1);
+                rolls[i] = rndRoll.Next(1, dDiceType + 1);
                 if (i == dDiceCount - 1)
                 {
                     if (isWild.Checked && (rolls[i] == dDiceType))
@@ -114,11 +68,145 @@ namespace RollDiced
                             }
                             j++;
                         }
-                        
+
                     }
                 }
             }
-            this.results.Text = rollDice(rolls);
+            return rolls;
+        }
+        public int findBonus(String s)
+        {
+            if (s.IndexOf('+') > 0)
+            {
+                return int.Parse(s.Substring(s.IndexOf('+') + 1, s.Length - s.IndexOf('+') - 1));
+            }
+            else
+            {
+                return 0;
+            }
+        }
+        public String removeBonus(String s)
+        {
+            if(s.IndexOf('+') > 0)
+            {
+                return s.Substring(0,s.IndexOf('+'));
+            }
+            else
+            {
+                return s;
+            }
+        }
+        public int countDice(String s)
+        {
+            int toD = s.IndexOf('d');
+            if (toD < 1)
+            {
+                return 0;
+            }
+            return int.Parse(s.Substring(0,toD));
+        }
+        public int findDiceType(String s)
+        {
+            int toD = s.IndexOf('d');
+            int len = s.Length;
+            if (toD < 1)
+            {
+                return 0;
+            }
+            return int.Parse(s.Substring(toD + 1, len - (toD + 1)));
+        }
+        public bool valideRoll(String r)
+        {
+            if(r == string.Empty) return false;
+            if (r.Count(s => s == 'd') != 1) return false;
+            if (r.IndexOf('d') < 1) return false;
+            return true;
+        }
+        public int rollWild(int i)
+        {
+            Random rnd = new Random();
+            int roll = i;
+            int wildRoll = roll;
+            while (roll == i)
+            {
+                roll = rnd.Next(1, i);
+                wildRoll += roll;
+            }
+            return wildRoll;
+        }
+        public void resetUI()
+        {
+            this.txt_Roll.Text = String.Empty;
+            this.txt_Roll.Focus();
+        }
+        private void btn_Roll_Click(object sender, EventArgs e)
+        {
+            //If the sound file is there, play it
+            try
+            {
+                String path = System.IO.Path.GetDirectoryName(Application.ExecutablePath) + "\\diceroll.wav";
+                using (SoundPlayer p = new SoundPlayer(path))
+                {
+                    p.PlaySync();
+                };
+            }
+            catch
+            {
+                //Skip playing sound
+            }
+            //split the text up.
+            List<string> allRolls = this.txt_Roll.Text.Split(new Char[] { ',', ';' }, System.StringSplitOptions.RemoveEmptyEntries).ToList();
+            //Loop through the rolls
+            foreach (String toss in allRolls)
+            {
+                int bonus = findBonus(toss);
+                String roll = removeBonus(toss);
+                //validate the roll
+                if (!valideRoll(roll))
+                {
+                    MessageBox.Show("There was an error with the roll: " + toss + (char)10 + "Please enter a roll designation such as 3d6+1.");
+                    //breaks on any error
+                    return;
+                }
+                //split damage into two ints.
+                int dDiceCount = countDice(roll);
+                int dDiceType = findDiceType(roll);
+                //roll the dice
+                int[] rolls = rollDice(dDiceCount, dDiceType);
+                //create textbox and add it to the panel
+                TextBox result = new TextBox();
+                result.Width = 300;
+                result.Font = resultFont;
+                result.BorderStyle = resultBorder;
+                result.WordWrap = true;
+                result.BackColor = this.ResultPanel.BackColor;
+                //Here is where changes would need to be made in order to deal with combining or splitting results
+                result.Text = printRoll(rolls, bonus);//This is where I can add the bonus
+                result.Multiline = true;
+                this.ResultPanel.Controls.Add(result); 
+            }
+            resetUI();
+        }
+
+        private void btn_Clear_Click(object sender, EventArgs e)
+        {
+            this.ResultPanel.Controls.Clear();
+            resetUI();
+        }
+
+        private void txt_Roll_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (e.KeyChar == (char)Keys.Enter)
+            {
+                RollAction rollTheDice = btn_Roll_Click;
+                rollTheDice.Invoke(sender, e);
+            }
+        }
+
+        private void helpToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            help h = new help();
+            h.Show();
         }
     }
 }
