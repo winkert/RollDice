@@ -11,17 +11,28 @@ using System.Media;
 
 namespace RollDiced
 {
-    public partial class Form1 : Form
+    public partial class MainDiceRoll : Form
     {
-        public Form1()
+        public MainDiceRoll()
         {
             InitializeComponent();
+            if (System.IO.File.Exists(location))
+            {
+                oSettings = SystemSettings.OpenSettings(location);
+            }
+            else
+            {
+                oSettings = new SystemSettings();
+            }
         }
         //Delegate for Roll
         public delegate void RollAction(object obj1, EventArgs e);
+        public static String location = System.IO.Path.GetDirectoryName(Application.ExecutablePath) + "\\rolldice.bin";
+        public static SystemSettings oSettings;
         //Public formats for textboxes
         public Font resultFont = new Font("Microsoft Sans Serif",12f);
         public BorderStyle resultBorder = BorderStyle.None;
+        #region Public Methods
         public String printRoll(int[] d, int b)
         {
             String roll = "";
@@ -136,23 +147,31 @@ namespace RollDiced
         }
         public void resetUI()
         {
-            this.txt_Roll.Text = String.Empty;
-            this.txt_Roll.Focus();
+            if (oSettings.clearSearch)
+            {
+                this.txt_Roll.Text = String.Empty;
+                this.txt_Roll.Focus(); 
+            }
         }
+        #endregion
+        #region Event Handlers
         private void btn_Roll_Click(object sender, EventArgs e)
         {
             //If the sound file is there, play it
-            try
+            if (oSettings.playSound)
             {
-                String path = System.IO.Path.GetDirectoryName(Application.ExecutablePath) + "\\diceroll.wav";
-                using (SoundPlayer p = new SoundPlayer(path))
+                try
                 {
-                    p.PlaySync();
-                };
-            }
-            catch
-            {
-                //Skip playing sound
+                    String path = System.IO.Path.GetDirectoryName(Application.ExecutablePath) + "\\diceroll.wav";
+                    using (SoundPlayer p = new SoundPlayer(path))
+                    {
+                        p.PlaySync();
+                    };
+                }
+                catch
+                {
+                    //Skip playing sound
+                } 
             }
             //split the text up.
             List<string> allRolls = this.txt_Roll.Text.Split(new Char[] { ',', ';' }, System.StringSplitOptions.RemoveEmptyEntries).ToList();
@@ -208,5 +227,17 @@ namespace RollDiced
             help h = new help();
             h.Show();
         }
+
+        private void quitToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+
+        private void settingsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            settings s = new settings();
+            s.Show();
+        }
+        #endregion
     }
 }
